@@ -9,43 +9,41 @@
 import UIKit
 
 class TodoListViewController: UITableViewController {
-
-    var todoListArray = ["A", "B", "C"]
-    var defaults = UserDefaults()
+    
+    var todoList = [Item]()
+    var dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    let encoder = PropertyListEncoder()
+    let decoder = PropertyListDecoder()
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
         self.tableView.alwaysBounceVertical = false
         // Do any additional setup after loading the view.
-        
-        if let items = defaults.object(forKey: "itemsList") as? [String] {
-            todoListArray = items
-        }
     }
-
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "todoListCell", for: indexPath)
-        cell.textLabel?.text = todoListArray[indexPath.row]
+        
+        let item = todoList[indexPath.row]
+        
+        cell.textLabel?.text = item.title
+        cell.accessoryType = item.done ? .checkmark : .none
         
         return cell
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return todoListArray.count
+        return todoList.count
     }
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        print(todoListArray[indexPath.row])
         
-        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-        } else {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-        }
-            
+        todoList[indexPath.row].done = !todoList[indexPath.row].done
+        tableView.reloadData()
         tableView.deselectRow(at: indexPath, animated: true)
     }
-
+    
     @IBAction func addItemPressed(_ sender: UIBarButtonItem) {
         
         var textField : UITextField?
@@ -54,10 +52,10 @@ class TodoListViewController: UITableViewController {
         
         alert.addAction(UIAlertAction(title: "Add item", style: .default, handler: {
             (action) in
+            
             if let text = textField?.text {
-                self.todoListArray.append(text)
-                self.tableView.reloadData()
-                self.defaults.set(todoListArray, forKey: "itemsList")
+                self.todoList.append(Item(title: text))
+                saveData()
             } else {
                 print("Textfield was blank!")
             }
@@ -70,6 +68,26 @@ class TodoListViewController: UITableViewController {
         
         present(alert, animated: true, completion: nil)
         
+    }
+    
+    func saveData () {
+        do {
+            let data = try encoder.encode(todoList)
+            try data.write(to: self.dataFilePath!)
+        } catch {
+            print ("Problem with encoding data \(error)")
+        }
+        
+        self.tableView.reloadData()
+    }
+    
+    func loadData () {
+        do {
+            let data = try decoder.decode([Item].self, from: Data(contentsOf: dataFilePath!))
+            todoList = data
+        } catch {
+            print ("Problem with decoding data \(error)")
+        }
     }
 }
 
